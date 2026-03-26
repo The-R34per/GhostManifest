@@ -17,6 +17,54 @@ def shutdown_server():
     func = request.environ.get('werkzeug.server.shutdown')
     if func:
         func()
+    
+def reassemble_from_zip(zip_data):
+    """
+    Checks a zip file in memory for .partX files and reassembles them.
+    Returns a list of reassembled file info.
+    """
+    reassembled_files = []
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as zf:
+            # Find all files that are chunks
+            chunk_files = [name for name in zf.namelist() if 'documents/chunks/' in name and '.part' in name]
+            if not chunk_files:
+                return [] # No chunks to reassemble
+
+            # Group chunks by their base filename
+            base_files = {}
+            for chunk_path in chunk_files:
+                base_name = chunk_path.split('documents/chunks/')[1].rsplit('.part', 1)[0]
+                if base_name not in base_files:
+                    base_files[base_name] = []
+                base_files[base_name].append(chunk_path)
+
+            # Create a directory to store reassembled files
+            assembled_dir = "assembled_files"
+            if not os.path.exists(assembled_dir):
+                os.makedirs(assembled_dir)
+
+            # Reassemble each base file
+            for base_name, parts in base_files.items():
+                parts.sort(key=lambda x: int(x.split('.part')[-1]))
+                
+                output_path = os.path.join(assembled_dir, base_name)
+                with open(output_path, 'wb') as outfile:
+                    for part_path in parts:
+                        with zf.open(part_path) as part_file:
+                            outfile.write(part_file.read())
+                
+                reassembled_files.append({
+                    'name': base_name,
+                    'path': output_path,
+                    'size': os.path.getsize(output_path)
+                })
+                print(f"[+] Reassembled {base_name} from {len(parts)} chunks.")
+
+    except Exception as e:
+        print(f"[-] Error during reassembly: {e}")
+        
+    return reassembled_files
 
 @app.route("/shutdown", methods=["POST"])
 def shutdown():
@@ -96,6 +144,13 @@ def upload_file():
         # Store in memory dictionary
         memory_key = f"{file.filename}_{int(time.time())}"
         memory_storage[memory_key] = file_info
+        
+        # --- CALL THE REASSEMBLY FUNCTION ---
+        reassembled = reassemble_from_zip(file_data)
+        if reassembled:
+            print(f"[*] Reassembled {len(reassembled)} files from upload {memory_key}.")
+            # You could also add info about the reassembled files to memory_storage if needed
+            file_info['reassembled_files'] = reassembled
         
         return f"File stored in memory: {memory_key}", 200
 
