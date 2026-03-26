@@ -26,12 +26,10 @@ def reassemble_from_zip(zip_data):
     reassembled_files = []
     try:
         with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as zf:
-            # Find all files that are chunks
             chunk_files = [name for name in zf.namelist() if 'documents/chunks/' in name and '.part' in name]
             if not chunk_files:
-                return [] # No chunks to reassemble
+                return [] 
 
-            # Group chunks by their base filename
             base_files = {}
             for chunk_path in chunk_files:
                 base_name = chunk_path.split('documents/chunks/')[1].rsplit('.part', 1)[0]
@@ -39,12 +37,10 @@ def reassemble_from_zip(zip_data):
                     base_files[base_name] = []
                 base_files[base_name].append(chunk_path)
 
-            # Create a directory to store reassembled files
             assembled_dir = "assembled_files"
             if not os.path.exists(assembled_dir):
                 os.makedirs(assembled_dir)
 
-            # Reassemble each base file
             for base_name, parts in base_files.items():
                 parts.sort(key=lambda x: int(x.split('.part')[-1]))
                 
@@ -141,15 +137,12 @@ def upload_file():
             'timestamp': request.form.get('timestamp', 'Unknown')
         }
         
-        # Store in memory dictionary
         memory_key = f"{file.filename}_{int(time.time())}"
         memory_storage[memory_key] = file_info
         
-        # --- CALL THE REASSEMBLY FUNCTION ---
         reassembled = reassemble_from_zip(file_data)
         if reassembled:
             print(f"[*] Reassembled {len(reassembled)} files from upload {memory_key}.")
-            # You could also add info about the reassembled files to memory_storage if needed
             file_info['reassembled_files'] = reassembled
         
         return f"File stored in memory: {memory_key}", 200
@@ -160,7 +153,6 @@ def upload_file():
 @app.route("/view/<path:filename>")
 def view_file(filename):
     try:
-        # Find the file in memory storage
         file_info = None
         file_key = None
         
@@ -217,7 +209,6 @@ def view_file(filename):
 @app.route("/download/<filename>")
 def download_file(filename):
     try:
-        # Find the file in memory storage
         file_info = None
         file_key = None
         

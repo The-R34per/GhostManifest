@@ -93,7 +93,6 @@ def create_in_memory_archive(files, system_info, log_content):
     zip_buffer = io.BytesIO()
     
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zipf:
-        # Add comprehensive system info (this part is unchanged)
         info_content = f"""========================================
 SYSTEM INFORMATION REPORT
 ========================================
@@ -132,14 +131,12 @@ FILE LIST
         zipf.writestr("SYSTEM_INFO.txt", info_content)
         zipf.writestr("execution_log.txt", log_content)
         
-        # --- INTEGRATED FILE SPLITTING AND ADDING ---
         for file_path in files:
             try:
                 with open(file_path, 'rb') as f:
                     file_data = f.read()
                     filename = os.path.basename(file_path)
                     
-                    # Check if file needs to be split
                     if len(file_data) > CHUNK_SIZE:
                         print(f"[*] Splitting large file: {filename}")
                         part_num = 0
@@ -152,7 +149,6 @@ FILE LIST
                             part_num += 1
                         print(f"[+] Split {filename} into {part_num} chunks.")
                     else:
-                        # File is small enough, add it directly
                         zipf.writestr(f"documents/{filename}", file_data)
 
             except (OSError, PermissionError) as e:
