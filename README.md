@@ -1,6 +1,6 @@
 # GhostManifest
 
-GhostManifest is a lightweight Python-based system state collection and transfer tool designed for controlled, competition-safe environments such as NSA NCX. It gathers specified files or directories from a target system, packages them into a ZIP archive, and securely posts the archive to a designated server endpoint for analysis or scoring.
+GhostManifest is a lightweight Python-based system state collection and transfer tool designed for controlled. It gathers specified files or directories from a target system, packages them into a ZIP archive, and securely posts the archive to a designated server endpoint for analysis or scoring.
 
 ---
 
