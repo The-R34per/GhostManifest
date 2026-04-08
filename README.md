@@ -2,6 +2,8 @@
 
 GhostManifest is a lightweight Python-based system state collection and transfer tool designed for controlled. It gathers specified files or directories from a target system, packages them into a ZIP archive, and securely posts the archive to a designated server endpoint for analysis or scoring.
 
+This tool was built for educational purposes only. The author is not responsable for any actions that a user may take using this code.
+
 ---
 
 ## Features
